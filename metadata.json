@@ -1,0 +1,6 @@
+{
+  "name": "CSS Clamp Font Size Generator",
+  "description": "Generate fluid CSS clamp font sizes with real-time interactive graph preview, viewport scaling simulation, and one-click code export.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
