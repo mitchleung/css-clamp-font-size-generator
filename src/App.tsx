@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { ClampConfig, TypePreset } from './types';
-import { calculateClamp } from './utils/clampCalculator';
+import { calculateClamp, generateAllTypographyCss, PRESET_LIST } from './utils/clampCalculator';
 import { copyToClipboard } from './utils/clipboard';
 import { ClampInputs } from './components/ClampInputs';
 import { ClampGraph } from './components/ClampGraph';
@@ -12,12 +12,13 @@ import {
   BookOpen,
   Check,
   Copy,
-  Sparkles
+  Sparkles,
+  Layers
 } from 'lucide-react';
 
 const DEFAULT_CONFIG: ClampConfig = {
   minFontSize: 18,
-  maxFontSize: 36,
+  maxFontSize: 28,
   minViewport: 375,
   maxViewport: 1280,
   rootFontSize: 16,
@@ -26,31 +27,76 @@ const DEFAULT_CONFIG: ClampConfig = {
   mode: 'fluid',
   directMin: '1.125rem',
   directPreferred: '0.75rem + 1.5978vw',
-  directMax: '2.25rem',
+  directMax: '1.75rem',
 };
 
 export default function App() {
   const [config, setConfig] = useState<ClampConfig>(DEFAULT_CONFIG);
+  const [presets, setPresets] = useState<TypePreset[]>(PRESET_LIST);
+  const [selectedPresetId, setSelectedPresetId] = useState<string | null>('heading-4');
   const [simulatedWidth, setSimulatedWidth] = useState<number>(768);
   const [copiedQuick, setCopiedQuick] = useState(false);
+  const [copiedAllHeader, setCopiedAllHeader] = useState(false);
 
   // Compute clamp calculations dynamically
   const calculation = useMemo(() => {
     return calculateClamp(config);
   }, [config]);
 
+  const selectedPreset = useMemo(() => {
+    return presets.find((p) => p.id === selectedPresetId) || null;
+  }, [presets, selectedPresetId]);
+
+  // When config changes (via sliders, inputs, etc.), stick min/max font size changes to the active archetype
+  const handleConfigChange = (newConfig: ClampConfig) => {
+    setConfig(newConfig);
+    if (selectedPresetId) {
+      setPresets((prev) =>
+        prev.map((p) =>
+          p.id === selectedPresetId
+            ? {
+                ...p,
+                minFontSizePx: newConfig.minFontSize,
+                maxFontSizePx: newConfig.maxFontSize,
+              }
+            : p
+        )
+      );
+    }
+  };
+
   const handleApplyPreset = (preset: TypePreset) => {
+    // Look up the latest version from presets state so previous user edits stick
+    const currentPresetState = presets.find((p) => p.id === preset.id) || preset;
+    setSelectedPresetId(preset.id);
     setConfig((prev) => ({
       ...prev,
-      minFontSize: preset.minFontSizePx,
-      maxFontSize: preset.maxFontSizePx,
-      minViewport: preset.minViewportPx,
-      maxViewport: preset.maxViewportPx,
+      minFontSize: currentPresetState.minFontSizePx,
+      maxFontSize: currentPresetState.maxFontSizePx,
+      // Keep user's global minViewport & maxViewport values intact across typo option changes
+      minViewport: prev.minViewport,
+      maxViewport: prev.maxViewport,
       mode: 'fluid',
     }));
   };
 
+  const handleResetPresets = () => {
+    setPresets(PRESET_LIST);
+    if (selectedPresetId) {
+      const defaultPreset = PRESET_LIST.find((p) => p.id === selectedPresetId);
+      if (defaultPreset) {
+        setConfig((prev) => ({
+          ...prev,
+          minFontSize: defaultPreset.minFontSizePx,
+          maxFontSize: defaultPreset.maxFontSizePx,
+        }));
+      }
+    }
+  };
+
   const handleReset = () => {
+    setPresets(PRESET_LIST);
+    setSelectedPresetId('heading-4');
     setConfig(DEFAULT_CONFIG);
     setSimulatedWidth(768);
   };
@@ -60,6 +106,15 @@ export default function App() {
     if (success || true) {
       setCopiedQuick(true);
       setTimeout(() => setCopiedQuick(false), 2200);
+    }
+  };
+
+  const handleCopyAllHeader = async () => {
+    const allCss = generateAllTypographyCss(config, 'css-rules', presets);
+    const success = await copyToClipboard(allCss);
+    if (success || true) {
+      setCopiedAllHeader(true);
+      setTimeout(() => setCopiedAllHeader(false), 2400);
     }
   };
 
@@ -93,16 +148,42 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-3 sm:gap-4">
-          <div className="hidden sm:flex px-3 py-1 rounded-full bg-[#1A1D24] border border-[#23262D] text-[10px] uppercase tracking-widest text-[#4FACFE] font-mono">
-            Precision Mode
+          <div className="hidden lg:flex px-3 py-1 rounded-full bg-[#1A1D24] border border-[#23262D] text-[10px] uppercase tracking-widest text-[#4FACFE] font-mono items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#4FACFE]" />
+            Global Viewport: {config.minViewport}px - {config.maxViewport}px
           </div>
           
           <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-[#161920] border border-[#23262D]">
-            <div className="w-2 h-2 rounded-full bg-[#4FACFE] animate-pulse shadow-[0_0_8px_#4FACFE]" />
+            <div className="w-2 h-2 rounded-full bg-[#00F2FE] animate-pulse shadow-[0_0_8px_#00F2FE]" />
             <span className="text-[10px] uppercase tracking-widest text-[#8E929D] font-mono">
-              Viewport: <span className="text-[#4FACFE] font-bold">{simulatedWidth}px</span>
+              Preview: <span className="text-[#00F2FE] font-bold">{simulatedWidth}px</span>
             </span>
           </div>
+
+          <button
+            id="header-copy-all-btn"
+            type="button"
+            onClick={handleCopyAllHeader}
+            className={`px-3.5 py-2 rounded-xl font-mono text-xs font-bold transition-all shadow-[0_0_15px_rgba(79,172,254,0.15)] active:scale-95 flex items-center gap-2 cursor-pointer border ${
+              copiedAllHeader
+                ? 'bg-[#00F2FE] text-[#0A0B0E] border-[#00F2FE] shadow-[0_0_25px_rgba(0,242,254,0.6)]'
+                : 'bg-[#161920] hover:bg-[#1A1D24] text-[#4FACFE] hover:text-[#00F2FE] border-[#4FACFE]/40 hover:border-[#00F2FE]'
+            }`}
+            title="Copy complete fluid typography system CSS (H1-H6, Body, Display, Meta) with current viewport bounds"
+          >
+            {copiedAllHeader ? (
+              <>
+                <Check className="w-3.5 h-3.5 stroke-[3] text-[#0A0B0E]" />
+                <span className="text-[#0A0B0E]">COPIED ALL!</span>
+              </>
+            ) : (
+              <>
+                <Layers className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">COPY ALL TYPO CSS</span>
+                <span className="sm:hidden">ALL TYPO</span>
+              </>
+            )}
+          </button>
 
           <button
             id="header-copy-btn"
@@ -113,6 +194,7 @@ export default function App() {
                 ? 'bg-[#00F2FE] text-[#0A0B0E] shadow-[0_0_25px_rgba(0,242,254,0.6)]'
                 : 'bg-[#4FACFE] hover:bg-[#00F2FE] text-[#0A0B0E]'
             }`}
+            title="Copy active clamp() CSS rule"
           >
             {copiedQuick ? (
               <>
@@ -134,7 +216,10 @@ export default function App() {
         {/* Presets Row */}
         <PresetSelector
           currentConfig={config}
+          presets={presets}
+          selectedPresetId={selectedPresetId}
           onApplyPreset={handleApplyPreset}
+          onResetPresets={handleResetPresets}
         />
 
         {/* Primary Workspace Grid */}
@@ -143,11 +228,12 @@ export default function App() {
           <div className="lg:col-span-5 space-y-6">
             <ClampInputs
               config={config}
-              onChange={setConfig}
+              selectedPreset={selectedPreset}
+              onChange={handleConfigChange}
               onReset={handleReset}
             />
 
-            <CodeOutput calculation={calculation} />
+            <CodeOutput calculation={calculation} config={config} presets={presets} />
           </div>
 
           {/* Right Column: Visual Graph & Live Responsive Preview */}

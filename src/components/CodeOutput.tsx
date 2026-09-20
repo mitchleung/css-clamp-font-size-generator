@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
-import { ClampCalculation } from '../types';
+import { ClampCalculation, ClampConfig, TypePreset } from '../types';
 import { copyToClipboard } from '../utils/clipboard';
-import { Copy, Check, Code2, Terminal, Layers, FileCode, Sparkles } from 'lucide-react';
+import { generateAllTypographyCss } from '../utils/clampCalculator';
+import { Copy, Check, Code2, Terminal, Layers, FileCode, Sparkles, BookOpen } from 'lucide-react';
 
 interface CodeOutputProps {
   calculation: ClampCalculation;
+  config?: ClampConfig;
+  presets?: TypePreset[];
 }
 
-type CodeTab = 'css' | 'value' | 'tailwind' | 'css-var' | 'scss';
+type CodeTab = 'css' | 'value' | 'all-typo' | 'tailwind' | 'css-var' | 'scss';
 
-export const CodeOutput: React.FC<CodeOutputProps> = ({ calculation }) => {
+export const CodeOutput: React.FC<CodeOutputProps> = ({ calculation, config, presets }) => {
   const [activeTab, setActiveTab] = useState<CodeTab>('css');
   const [copied, setCopied] = useState(false);
 
@@ -19,6 +22,10 @@ export const CodeOutput: React.FC<CodeOutputProps> = ({ calculation }) => {
         return calculation.cssRule;
       case 'value':
         return calculation.clampCssValue;
+      case 'all-typo':
+        return config
+          ? generateAllTypographyCss(config, 'css-rules', presets)
+          : calculation.cssRule;
       case 'tailwind':
         return calculation.tailwindClass;
       case 'css-var':
@@ -117,6 +124,21 @@ export const CodeOutput: React.FC<CodeOutputProps> = ({ calculation }) => {
           }`}
         >
           <span>clamp() Value</span>
+        </button>
+
+        <button
+          id="tab-all-typo"
+          type="button"
+          onClick={() => setActiveTab('all-typo')}
+          className={`px-3.5 py-1.5 rounded-lg font-mono font-medium transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+            activeTab === 'all-typo'
+              ? 'bg-[#1A1D24] text-[#00F2FE] font-bold border border-[#4FACFE]/40 shadow-sm'
+              : 'text-[#8E929D] hover:text-[#E4E6EB]'
+          }`}
+          title="Full typography scale CSS for H1-H6, Lead, Body, etc."
+        >
+          <BookOpen className="w-3.5 h-3.5 text-[#4FACFE]" />
+          <span>All Typo Scale</span>
         </button>
 
         <button
@@ -219,6 +241,12 @@ export const CodeOutput: React.FC<CodeOutputProps> = ({ calculation }) => {
                 <span className="text-[#50545E]">, </span>
                 <span className="text-[#00F2FE]">{calculation.unit === 'rem' ? `${calculation.maxRem}rem` : `${calculation.maxPx}px`}</span>
                 <span className="text-[#50545E]">)</span>
+              </code>
+            )}
+
+            {activeTab === 'all-typo' && (
+              <code>
+                <span className="text-[#00F2FE]">{currentSnippet}</span>
               </code>
             )}
 

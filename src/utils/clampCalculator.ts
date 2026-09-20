@@ -303,3 +303,73 @@ export const PRESET_LIST: TypePreset[] = [
     tag: 'Meta / Tag',
   },
 ];
+
+export interface TypoScaleCSSOptions {
+  format?: 'css-rules' | 'css-variables' | 'tailwind-config';
+}
+
+/**
+ * Generates combined CSS for all typographic archetype presets using the user's global config and custom presets
+ */
+export function generateAllTypographyCss(
+  config: ClampConfig,
+  format: 'css-rules' | 'css-variables' | 'tailwind-config' = 'css-rules',
+  presets: TypePreset[] = PRESET_LIST
+): string {
+  const calculations = presets.map((preset) => {
+    const calc = calculateClamp({
+      ...config,
+      minFontSize: preset.minFontSizePx,
+      maxFontSize: preset.maxFontSizePx,
+      mode: 'fluid',
+    });
+    return { preset, calc };
+  });
+
+  if (format === 'css-variables') {
+    const lines = calculations.map(({ preset, calc }) => {
+      const varName = `--text-${preset.id}`;
+      return `  ${varName}: ${calc.clampCssValue}; /* ${preset.minFontSizePx}px → ${preset.maxFontSizePx}px */`;
+    });
+    return `/* Fluid Typography Clamp Variables (${config.minViewport}px to ${config.maxViewport}px viewport) */\n:root {\n${lines.join('\n')}\n}`;
+  }
+
+  if (format === 'tailwind-config') {
+    const lines = calculations.map(({ preset, calc }) => {
+      return `      '${preset.id}': '${calc.clampCssValue}',`;
+    });
+    return `// Tailwind CSS configuration snippet\nmodule.exports = {\n  theme: {\n    extend: {\n      fontSize: {\n${lines.join('\n')}\n      },\n    },\n  },\n};`;
+  }
+
+  // Standard CSS rules mapping to semantic HTML tags and helper classes
+  const ruleBlocks = calculations.map(({ preset, calc }) => {
+    let selector = `.${preset.id}`;
+    if (preset.id === 'hero-display') {
+      selector = '.hero-title, .text-display';
+    } else if (preset.id === 'heading-1') {
+      selector = 'h1, .h1';
+    } else if (preset.id === 'heading-2') {
+      selector = 'h2, .h2';
+    } else if (preset.id === 'heading-3') {
+      selector = 'h3, .h3';
+    } else if (preset.id === 'heading-4') {
+      selector = 'h4, .h4';
+    } else if (preset.id === 'heading-5') {
+      selector = 'h5, .h5';
+    } else if (preset.id === 'heading-6') {
+      selector = 'h6, .h6';
+    } else if (preset.id === 'body-lead') {
+      selector = '.lead, .body-large';
+    } else if (preset.id === 'body-regular') {
+      selector = 'body, p, .body';
+    } else if (preset.id === 'caption-small') {
+      selector = 'small, .caption, .meta';
+    }
+
+    return `/* ${preset.name} (${preset.minFontSizePx}px → ${preset.maxFontSizePx}px @ ${config.minViewport}px-${config.maxViewport}px) */\n${selector} {\n  font-size: ${calc.clampCssValue};\n}`;
+  });
+
+  const headerComment = `/* ==========================================================================\n   Fluid Typography System (Full Typographic Archetype Scale)\n   Global Viewport Boundaries: ${config.minViewport}px (mobile) → ${config.maxViewport}px (desktop)\n   Root Base Font Size: ${config.rootFontSize}px | Unit: ${config.unit.toUpperCase()}\n   ========================================================================== */\n\n`;
+
+  return headerComment + ruleBlocks.join('\n\n');
+}

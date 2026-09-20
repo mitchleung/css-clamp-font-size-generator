@@ -1,14 +1,15 @@
 import React from 'react';
-import { ClampConfig, UnitType } from '../types';
+import { ClampConfig, UnitType, TypePreset } from '../types';
 import { Sliders, Sparkles, Smartphone, Monitor, Info, RotateCcw } from 'lucide-react';
 
 interface ClampInputsProps {
   config: ClampConfig;
+  selectedPreset?: TypePreset | null;
   onChange: (config: ClampConfig) => void;
   onReset: () => void;
 }
 
-export const ClampInputs: React.FC<ClampInputsProps> = ({ config, onChange, onReset }) => {
+export const ClampInputs: React.FC<ClampInputsProps> = ({ config, selectedPreset, onChange, onReset }) => {
   const updateField = <K extends keyof ClampConfig>(field: K, value: ClampConfig[K]) => {
     onChange({
       ...config,
@@ -32,11 +33,19 @@ export const ClampInputs: React.FC<ClampInputsProps> = ({ config, onChange, onRe
             <Sliders className="w-4 h-4" />
           </div>
           <div>
-            <h2 className="text-sm font-medium tracking-tight text-[#E4E6EB]">
-              Configuration Matrix
-            </h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-medium tracking-tight text-[#E4E6EB]">
+                Configuration Matrix
+              </h2>
+              {selectedPreset && (
+                <span className="text-[10px] font-mono text-[#00F2FE] bg-[#161920] px-2 py-0.5 rounded border border-[#23262D] flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#00F2FE] shadow-[0_0_6px_#00F2FE]" />
+                  {selectedPreset.name}
+                </span>
+              )}
+            </div>
             <p className="text-[10px] uppercase tracking-[0.2em] text-[#8E929D]">
-              Boundary Parameters
+              {selectedPreset ? `Tuning ${selectedPreset.tag} Bounds` : 'Boundary Parameters'}
             </p>
           </div>
         </div>
@@ -234,93 +243,109 @@ export const ClampInputs: React.FC<ClampInputsProps> = ({ config, onChange, onRe
             </div>
           </div>
 
-          {/* Viewport Range Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Min Viewport Width */}
-            <div className="p-4 rounded-xl bg-[#161920] border border-[#23262D] space-y-2.5">
-              <div className="flex items-center justify-between">
-                <label htmlFor="min-viewport-input" className="text-[10px] uppercase tracking-[0.2em] text-[#8E929D] font-mono flex items-center gap-1.5">
-                  <Smartphone className="w-3.5 h-3.5 text-[#4FACFE]" />
-                  Min Viewport
-                </label>
-                <span className="text-[10px] font-mono text-[#50545E]">Mobile</span>
+          {/* Viewport Range Grid - Global Configuration */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] uppercase tracking-[0.2em] text-[#4FACFE] font-mono font-semibold">
+                  Global Viewport Range
+                </span>
+                <span className="text-[9px] uppercase tracking-widest text-[#50545E] font-mono bg-[#161920] px-1.5 py-0.5 rounded border border-[#23262D]">
+                  Shared Across Archetypes
+                </span>
               </div>
-
-              <div className="relative">
-                <input
-                  id="min-viewport-input"
-                  type="number"
-                  min="200"
-                  max="1200"
-                  step="5"
-                  value={config.minViewport}
-                  onChange={(e) => updateField('minViewport', Math.max(100, parseFloat(e.target.value) || 320))}
-                  className="w-full bg-[#0F1116] border border-[#23262D] rounded-lg px-4 py-2.5 font-mono text-base font-bold text-[#00F2FE] focus:outline-none focus:border-[#4FACFE]"
-                />
-                <span className="absolute right-4 top-2.5 text-xs text-[#50545E] font-mono">px</span>
-              </div>
-
-              {/* Quick Preset Buttons for Min Viewport */}
-              <div className="flex items-center gap-1.5 pt-1">
-                {[320, 375, 480, 640].map((vw) => (
-                  <button
-                    key={`min-vw-${vw}`}
-                    id={`min-vw-preset-${vw}`}
-                    type="button"
-                    onClick={() => updateField('minViewport', vw)}
-                    className={`px-2.5 py-1 rounded text-[10px] font-mono transition-all cursor-pointer ${
-                      config.minViewport === vw
-                        ? 'bg-[#1A1D24] text-[#00F2FE] border border-[#4FACFE] font-bold shadow-[0_0_8px_rgba(79,172,254,0.2)]'
-                        : 'bg-[#0F1116] text-[#8E929D] hover:text-[#E4E6EB] border border-[#23262D]'
-                    }`}
-                  >
-                    {vw}px
-                  </button>
-                ))}
-              </div>
+              <span className="text-[10px] font-mono text-[#8E929D]">
+                {config.minViewport}px → {config.maxViewport}px
+              </span>
             </div>
 
-            {/* Max Viewport Width */}
-            <div className="p-4 rounded-xl bg-[#161920] border border-[#23262D] space-y-2.5">
-              <div className="flex items-center justify-between">
-                <label htmlFor="max-viewport-input" className="text-[10px] uppercase tracking-[0.2em] text-[#8E929D] font-mono flex items-center gap-1.5">
-                  <Monitor className="w-3.5 h-3.5 text-[#4FACFE]" />
-                  Max Viewport
-                </label>
-                <span className="text-[10px] font-mono text-[#50545E]">Desktop</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Min Viewport Width */}
+              <div className="p-4 rounded-xl bg-[#161920] border border-[#23262D] space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label htmlFor="min-viewport-input" className="text-[10px] uppercase tracking-[0.2em] text-[#8E929D] font-mono flex items-center gap-1.5">
+                    <Smartphone className="w-3.5 h-3.5 text-[#4FACFE]" />
+                    Min Viewport (Global)
+                  </label>
+                  <span className="text-[10px] font-mono text-[#50545E]">Mobile Bound</span>
+                </div>
+
+                <div className="relative">
+                  <input
+                    id="min-viewport-input"
+                    type="number"
+                    min="200"
+                    max="1200"
+                    step="5"
+                    value={config.minViewport}
+                    onChange={(e) => updateField('minViewport', Math.max(100, parseFloat(e.target.value) || 320))}
+                    className="w-full bg-[#0F1116] border border-[#23262D] rounded-lg px-4 py-2.5 font-mono text-base font-bold text-[#00F2FE] focus:outline-none focus:border-[#4FACFE]"
+                  />
+                  <span className="absolute right-4 top-2.5 text-xs text-[#50545E] font-mono">px</span>
+                </div>
+
+                {/* Quick Preset Buttons for Min Viewport */}
+                <div className="flex items-center gap-1.5 pt-1">
+                  {[320, 375, 480, 640].map((vw) => (
+                    <button
+                      key={`min-vw-${vw}`}
+                      id={`min-vw-preset-${vw}`}
+                      type="button"
+                      onClick={() => updateField('minViewport', vw)}
+                      className={`px-2.5 py-1 rounded text-[10px] font-mono transition-all cursor-pointer ${
+                        config.minViewport === vw
+                          ? 'bg-[#1A1D24] text-[#00F2FE] border border-[#4FACFE] font-bold shadow-[0_0_8px_rgba(79,172,254,0.2)]'
+                          : 'bg-[#0F1116] text-[#8E929D] hover:text-[#E4E6EB] border border-[#23262D]'
+                      }`}
+                    >
+                      {vw}px
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              <div className="relative">
-                <input
-                  id="max-viewport-input"
-                  type="number"
-                  min={config.minViewport + 10}
-                  max="3840"
-                  step="10"
-                  value={config.maxViewport}
-                  onChange={(e) => updateField('maxViewport', Math.max(config.minViewport + 10, parseFloat(e.target.value) || 1280))}
-                  className="w-full bg-[#0F1116] border border-[#23262D] rounded-lg px-4 py-2.5 font-mono text-base font-bold text-[#00F2FE] focus:outline-none focus:border-[#4FACFE]"
-                />
-                <span className="absolute right-4 top-2.5 text-xs text-[#50545E] font-mono">px</span>
-              </div>
+              {/* Max Viewport Width */}
+              <div className="p-4 rounded-xl bg-[#161920] border border-[#23262D] space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label htmlFor="max-viewport-input" className="text-[10px] uppercase tracking-[0.2em] text-[#8E929D] font-mono flex items-center gap-1.5">
+                    <Monitor className="w-3.5 h-3.5 text-[#4FACFE]" />
+                    Max Viewport (Global)
+                  </label>
+                  <span className="text-[10px] font-mono text-[#50545E]">Desktop Bound</span>
+                </div>
 
-              {/* Quick Preset Buttons for Max Viewport */}
-              <div className="flex items-center gap-1.5 pt-1">
-                {[1024, 1280, 1440, 1920].map((vw) => (
-                  <button
-                    key={`max-vw-${vw}`}
-                    id={`max-vw-preset-${vw}`}
-                    type="button"
-                    onClick={() => updateField('maxViewport', vw)}
-                    className={`px-2.5 py-1 rounded text-[10px] font-mono transition-all cursor-pointer ${
-                      config.maxViewport === vw
-                        ? 'bg-[#1A1D24] text-[#00F2FE] border border-[#4FACFE] font-bold shadow-[0_0_8px_rgba(79,172,254,0.2)]'
-                        : 'bg-[#0F1116] text-[#8E929D] hover:text-[#E4E6EB] border border-[#23262D]'
-                    }`}
-                  >
-                    {vw}px
-                  </button>
-                ))}
+                <div className="relative">
+                  <input
+                    id="max-viewport-input"
+                    type="number"
+                    min={config.minViewport + 10}
+                    max="3840"
+                    step="10"
+                    value={config.maxViewport}
+                    onChange={(e) => updateField('maxViewport', Math.max(config.minViewport + 10, parseFloat(e.target.value) || 1280))}
+                    className="w-full bg-[#0F1116] border border-[#23262D] rounded-lg px-4 py-2.5 font-mono text-base font-bold text-[#00F2FE] focus:outline-none focus:border-[#4FACFE]"
+                  />
+                  <span className="absolute right-4 top-2.5 text-xs text-[#50545E] font-mono">px</span>
+                </div>
+
+                {/* Quick Preset Buttons for Max Viewport */}
+                <div className="flex items-center gap-1.5 pt-1">
+                  {[1024, 1280, 1440, 1920].map((vw) => (
+                    <button
+                      key={`max-vw-${vw}`}
+                      id={`max-vw-preset-${vw}`}
+                      type="button"
+                      onClick={() => updateField('maxViewport', vw)}
+                      className={`px-2.5 py-1 rounded text-[10px] font-mono transition-all cursor-pointer ${
+                        config.maxViewport === vw
+                          ? 'bg-[#1A1D24] text-[#00F2FE] border border-[#4FACFE] font-bold shadow-[0_0_8px_rgba(79,172,254,0.2)]'
+                          : 'bg-[#0F1116] text-[#8E929D] hover:text-[#E4E6EB] border border-[#23262D]'
+                      }`}
+                    >
+                      {vw}px
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
