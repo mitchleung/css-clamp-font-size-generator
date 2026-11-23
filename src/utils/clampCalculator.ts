@@ -36,15 +36,20 @@ export function calculateClamp(config: ClampConfig): ClampCalculation {
   // If in direct mode, construct direct strings
   if (mode === 'direct') {
     const clampVal = `clamp(${directMin}, ${directPreferred}, ${directMax})`;
+    const parsedMinPx = parseCssLengthToPx(directMin, rootFontSize);
+    const parsedMaxPx = parseCssLengthToPx(directMax, rootFontSize);
+    const minPx = parsedMinPx ?? 16;
+    const maxPx = Math.max(minPx, parsedMaxPx ?? 32);
+
     return {
       slope: 0,
       slopeVw: 0,
       interceptPx: 0,
       interceptRem: 0,
-      minPx: parseFloat(directMin) * (directMin.includes('rem') ? rootFontSize : 1) || 16,
-      maxPx: parseFloat(directMax) * (directMax.includes('rem') ? rootFontSize : 1) || 32,
-      minRem: (parseFloat(directMin) * (directMin.includes('rem') ? rootFontSize : 1) || 16) / rootFontSize,
-      maxRem: (parseFloat(directMax) * (directMax.includes('rem') ? rootFontSize : 1) || 32) / rootFontSize,
+      minPx,
+      maxPx,
+      minRem: minPx / rootFontSize,
+      maxRem: maxPx / rootFontSize,
       minViewport,
       maxViewport,
       rootFontSize,
@@ -131,6 +136,46 @@ export function calculateClamp(config: ClampConfig): ClampCalculation {
   };
 }
 
+function parseCssLengthToPx(value: string, rootFontSize: number): number | null {
+  const trimmed = value.trim();
+  const match = trimmed.match(/^([+-]?\d*\.?\d+)(rem|px|em)?$/i);
+  if (!match) return null;
+  const amount = parseFloat(match[1]);
+  if (Number.isNaN(amount)) return null;
+  const unit = (match[2] || 'px').toLowerCase();
+  if (unit === 'rem' || unit === 'em') return amount * rootFontSize;
+  return amount;
+}
+
+function evaluatePreferredExpression(
+  expression: string,
+  viewportWidth: number,
+  rootFontSize: number
+): number | null {
+  const tokens = expression.replace(/\s+/g, '').match(/[+-]?[^+-]+/g);
+  if (!tokens || tokens.length === 0) return null;
+
+  let total = 0;
+  for (const token of tokens) {
+    const value = parseFloat(token);
+    if (Number.isNaN(value)) return null;
+
+    if (token.endsWith('vw')) {
+      total += (value / 100) * viewportWidth;
+    } else if (token.endsWith('rem')) {
+      total += value * rootFontSize;
+    } else if (token.endsWith('px')) {
+      total += value;
+    } else if (token.endsWith('em')) {
+      total += value * rootFontSize;
+    } else {
+      return null;
+    }
+  }
+
+  return total;
+}
+
 /**
  * Calculates exact font size in PX and REM at any viewport width
  */
@@ -138,7 +183,7 @@ export function getFontSizeAtWidth(
   viewportWidth: number,
   calculation: ClampCalculation
 ): { px: number; rem: number; status: 'clamped-min' | 'scaling' | 'clamped-max' } {
-  const { minPx, maxPx, minViewport, maxViewport, slope, interceptPx, rootFontSize } = calculation;
+  const { minPx, maxPx, minViewport, maxViewport, slope, interceptPx, rootFontSize, preferredExpression } = calculation;
 
   if (viewportWidth <= minViewport) {
     return {
@@ -156,7 +201,8 @@ export function getFontSizeAtWidth(
     };
   }
 
-  const px = slope * viewportWidth + interceptPx;
+  const evaluated = evaluatePreferredExpression(preferredExpression, viewportWidth, rootFontSize);
+  const px = evaluated ?? slope * viewportWidth + interceptPx;
   const clampedPx = Math.min(maxPx, Math.max(minPx, px));
 
   return {
